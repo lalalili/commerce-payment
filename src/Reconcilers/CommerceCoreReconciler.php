@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace Lalalili\CommercePayment\Reconcilers;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
-use Lalalili\CommerceCore\Models\PaymentLog;
-use Lalalili\CommerceCore\Services\OrderLifecycleService;
+use Lalalili\CommerceCore\DTOs\PaymentApplicationData;
+use Lalalili\CommerceCore\Enums\PaymentApplicationOutcome;
+use Lalalili\CommerceCore\Models\Order;
+use Lalalili\CommerceCore\Services\PaymentApplicationService;
+use Lalalili\CommerceCore\Support\ModelAttributeMapper;
 use Lalalili\CommercePayment\Contracts\PaymentReconciler;
 use Lalalili\CommercePayment\Data\PaymentResult;
+use Lalalili\CommercePayment\Enums\PaymentOutcome;
 use Lalalili\CommercePayment\Exceptions\PaymentAmountMismatchException;
 
 /**
@@ -20,51 +23,51 @@ use Lalalili\CommercePayment\Exceptions\PaymentAmountMismatchException;
  */
 class CommerceCoreReconciler implements PaymentReconciler
 {
-    public function __construct(private readonly OrderLifecycleService $orders)
-    {
+    public function __construct(
+        private readonly PaymentApplicationService $payments,
+        private readonly ModelAttributeMapper $attributes,
+    ) {
     }
 
     public function reconcile(PaymentResult $result, ?int $updatedBy = null): void
     {
-        /** @var class-string<Model> $orderModel */
-        $orderModel = config('commerce.models.order');
-
-        DB::transaction(function () use ($result, $updatedBy, $orderModel): void {
-            $this->recordPaymentLog($result);
-
-            $order = $orderModel::query()
-                ->where('number', $result->orderNumber)
-                ->lockForUpdate()
-                ->first();
-
-            if (! $order instanceof Model || ! $result->isPaid()) {
-                return;
-            }
-
-            $this->ensureAmountMatches($order, $result);
-
-            $this->orders->markPaid(
-                orderNumber: $result->orderNumber,
-                paymentStatusMessage: $result->orderMessage(),
-                paymentTime: $result->paidAt ?? now(),
-                updatedBy: $updatedBy,
-            );
-        });
+        $this->payments->apply($this->toPaymentApplicationData($result), $updatedBy);
+        $this->throwIfStrictAmountMismatch($result);
     }
 
-    private function recordPaymentLog(PaymentResult $result): void
+    private function toPaymentApplicationData(PaymentResult $result): PaymentApplicationData
     {
-        /** @var class-string<PaymentLog> $paymentLogModel */
-        $paymentLogModel = config('commerce.models.payment_log', PaymentLog::class);
-
-        $paymentLogModel::query()->updateOrCreate(
-            ['order_number' => $result->orderNumber, 'status_code' => $result->statusCode],
-            ['response' => $result->payload, 'status_message' => $result->statusMessage],
+        return new PaymentApplicationData(
+            orderNumber: $result->orderNumber,
+            outcome: $this->toPaymentApplicationOutcome($result->outcome),
+            payload: $result->payload,
+            statusCode: $result->statusCode,
+            statusMessage: $result->statusMessage,
+            amount: $result->amount,
+            paidAt: $result->paidAt ?? ($result->isPaid() ? now() : null),
+            outcomeMessage: $result->orderMessage(),
+            gatewayLabel: $result->gatewayLabel,
         );
     }
 
-    private function ensureAmountMatches(Model $order, PaymentResult $result): void
+    private function toPaymentApplicationOutcome(PaymentOutcome $outcome): PaymentApplicationOutcome
     {
+        return match ($outcome) {
+            PaymentOutcome::Paid          => PaymentApplicationOutcome::Paid,
+            PaymentOutcome::Pending       => PaymentApplicationOutcome::Pending,
+            PaymentOutcome::Declined      => PaymentApplicationOutcome::Declined,
+            PaymentOutcome::Refunded      => PaymentApplicationOutcome::Refunded,
+            PaymentOutcome::UserCancelled => PaymentApplicationOutcome::UserCancelled,
+            PaymentOutcome::QueryFailed   => PaymentApplicationOutcome::QueryFailed,
+        };
+    }
+
+    private function throwIfStrictAmountMismatch(PaymentResult $result): void
+    {
+        if (! $result->isPaid()) {
+            return;
+        }
+
         if (! (bool) config('commerce-payment.reconcile.strict_amount_check', true)) {
             return;
         }
@@ -73,11 +76,40 @@ class CommerceCoreReconciler implements PaymentReconciler
             return;
         }
 
-        $expected = (int) data_get($order, 'total_sales_price', 0);
+        $order = $this->findOrder($result->orderNumber);
+
+        if (! $order instanceof Model) {
+            return;
+        }
+
+        $expected = (int) $this->attributes->value($order, 'orders', 'total_sales_price', 0);
         if ($expected === $result->amount) {
             return;
         }
 
         throw PaymentAmountMismatchException::forOrder($result->orderNumber, $expected, $result->amount);
+    }
+
+    private function findOrder(string $orderNumber): ?Model
+    {
+        /** @var class-string<Model> $orderModel */
+        $orderModel = $this->orderModel();
+
+        /** @var Model|null $order */
+        $order = $orderModel::query()
+            ->where($this->attributes->column('orders', 'number', 'number') ?? 'number', $orderNumber)
+            ->first();
+
+        return $order;
+    }
+
+    /**
+     * @return class-string<Model>
+     */
+    private function orderModel(): string
+    {
+        $model = config('commerce.models.order', Order::class);
+
+        return is_string($model) && is_a($model, Model::class, true) ? $model : Order::class;
     }
 }
