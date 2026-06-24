@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-06-24
+
+### Added
+
+- `PaymentGateway::verifyReturn(Request): bool` — verifies a browser redirect (OrderResultURL)
+  signature without querying or reconciling, symmetric with `verifyNotify`. Lets a host redirect
+  to an error page (and skip reconciliation) when a return is unverified. ECPay checks the
+  CheckMacValue yields a `MerchantTradeNo`; E.SUN (no return signature) confirms the `DATA`
+  parses to an order number, deferring trust to the server-to-server query MAC. Surfaced by the
+  aitehub subscription migration.
+
 ## [1.1.0] - 2026-06-24
 
 ### Added

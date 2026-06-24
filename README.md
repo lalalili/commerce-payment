@@ -39,8 +39,9 @@ deprecated, abandoned, and archived in favour of this package.
 From v1.0.0 the following surface is covered by [SemVer](https://semver.org/) — breaking changes
 to it require a new major version:
 
-- **Contracts**: `Contracts\PaymentGateway`, `Contracts\PaymentReconciler`, `Contracts\InvoiceGateway`
-  (incl. `getIssue()` — raw GetIssue 3.0.0 detail query, added in 1.1.0).
+- **Contracts**: `Contracts\PaymentGateway` (incl. `verifyReturn()` — redirect-signature check,
+  added in 1.2.0), `Contracts\PaymentReconciler`, `Contracts\InvoiceGateway` (incl. `getIssue()` —
+  raw GetIssue 3.0.0 detail query, added in 1.1.0).
 - **Data DTOs** (constructors, named factories, public readonly properties): `Data\PaymentResult`,
   `Data\RefundResult`, `Data\PaymentStartResult`, `Data\InvoiceResult`.
 - **Enum**: `Enums\PaymentOutcome` cases.

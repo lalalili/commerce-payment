@@ -31,6 +31,13 @@ interface PaymentGateway
     public function verifyNotify(Request $request): bool;
 
     /**
+     * 僅驗證導回頁（browser redirect / OrderResultURL）的真偽，不查詢、不對帳。
+     *
+     * 與 verifyNotify 對稱：供 host 在導回流程「驗章失敗即導向錯誤頁、不對帳」使用。
+     */
+    public function verifyReturn(Request $request): bool;
+
+    /**
      * 處理背景通知（server-to-server），回正規化結果。
      */
     public function handleNotify(Request $request): PaymentResult;

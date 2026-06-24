@@ -79,6 +79,20 @@ class EcpayGateway implements PaymentGateway
         }
     }
 
+    public function verifyReturn(Request $request): bool
+    {
+        $payload = $this->validatedPaymentPayload($request);
+        try {
+            $response = $this->factory->create(VerifiedArrayResponse::class)->get($payload);
+
+            return is_array($response) && isset($response['MerchantTradeNo']);
+        } catch (Throwable $e) {
+            Log::channel('slack_outside_api')->critical('EcpayGateway:verifyReturn:綠界導回驗章失敗：' . $e->getMessage());
+
+            return false;
+        }
+    }
+
     public function handleNotify(Request $request): PaymentResult
     {
         $payload = $this->validatedPaymentPayload($request);

@@ -94,6 +94,15 @@ class EsunGateway implements PaymentGateway
         return false;
     }
 
+    public function verifyReturn(Request $request): bool
+    {
+        // 玉山導回頁無獨立簽章；真正驗證由後續 server-to-server query 的 MAC 把關。
+        // 此處僅確認導回 DATA 可解析出訂單編號（拒絕空/壞 payload）。
+        $returnDataArray = $this->parseDataString((string) $request->input('DATA'));
+
+        return (string) ($returnDataArray['ONO'] ?? '') !== '';
+    }
+
     public function handleNotify(Request $request): PaymentResult
     {
         // 玉山無背景通知。

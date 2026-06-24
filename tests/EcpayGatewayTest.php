@@ -200,3 +200,36 @@ it('verifyNotify 驗章失敗 → false', function (): void {
 
     expect(ecpayGw($factory)->verifyNotify(ecpayNotifyRequest()))->toBeFalse();
 });
+
+it('verifyReturn 驗章成功（回 MerchantTradeNo 陣列）→ true', function (): void {
+    $verifier = new class () {
+        /**
+         * @param array<string, mixed> $d
+         * @return array<string, mixed>
+         */
+        public function get(array $d): array
+        {
+            return ['MerchantTradeNo' => 'A0000001', 'RtnCode' => '1'];
+        }
+    };
+    $factory = Mockery::mock(Factory::class, function (MockInterface $m) use ($verifier): void {
+        $m->shouldReceive('create')->once()->with(VerifiedArrayResponse::class)->andReturn($verifier);
+    });
+
+    expect(ecpayGw($factory)->verifyReturn(ecpayNotifyRequest()))->toBeTrue();
+});
+
+it('verifyReturn 驗章失敗 → false', function (): void {
+    $verifier = new class () {
+        /** @param array<string, mixed> $d */
+        public function get(array $d): array
+        {
+            throw new RuntimeException('fail');
+        }
+    };
+    $factory = Mockery::mock(Factory::class, function (MockInterface $m) use ($verifier): void {
+        $m->shouldReceive('create')->once()->with(VerifiedArrayResponse::class)->andReturn($verifier);
+    });
+
+    expect(ecpayGw($factory)->verifyReturn(ecpayNotifyRequest()))->toBeFalse();
+});
