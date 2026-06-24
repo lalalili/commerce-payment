@@ -18,10 +18,10 @@
         "pestphp/pest-plugin-laravel": "^3.0|^4.0",
         "laravel/pint": "^1.0",
         "larastan/larastan": "^3.0",
-        "lalalili/commerce-core": "^0.1.10"
+        "lalalili/commerce-core": "^0.1.10|^0.2.0"
     },
     "suggest": {
-        "lalalili/commerce-core": "^0.1.10 provides the CommerceCoreReconciler adapter to reconcile payment results against commerce-core orders."
+        "lalalili/commerce-core": "^0.1.10|^0.2.0 provides the CommerceCoreReconciler adapter to reconcile payment results against commerce-core orders."
     },
     "autoload": {
         "psr-4": {
