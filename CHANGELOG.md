@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-06-25
+
+### Fixed
+
+- **E.SUN refund detection** — `EsunGateway` classified refunds by `RC === '69'`, but `69` is a
+  `SETTLESTATUS` (訂單狀態：退貨成功), not a response code (`RC` has no `69` — see EsunACQ error-code
+  spec). The branch was dead, so externally-processed refunds surfaced as `Pending` instead of
+  `Refunded`. Now keyed on `SETTLESTATUS === '69'`. Verified against the E.SUN ACQ docs
+  (單筆查詢 附件一 訂單狀態 / 交易錯誤定義碼).
+
 ## [1.2.0] - 2026-06-24
 
 ### Added

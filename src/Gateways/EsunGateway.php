@@ -223,7 +223,8 @@ class EsunGateway implements PaymentGateway
             return new PaymentResult($orderNumber, PaymentOutcome::Declined, $statusCode, $statusMessage, $raw, tradeNo: $tradeNo);
         }
 
-        if ($statusCode === '69') {
+        // SETTLESTATUS 69 = 退貨成功（訂單狀態），非回覆碼 RC；RC 無 69（見 EsunACQ 交易錯誤定義碼）。
+        if ($settleStatus === '69') {
             return new PaymentResult($orderNumber, PaymentOutcome::Refunded, $statusCode, $statusMessage, $raw, tradeNo: $tradeNo, outcomeMessage: '銀行已退款');
         }
 

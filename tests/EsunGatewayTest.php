@@ -75,13 +75,19 @@ it('query RC00 + SETTLESTATUS19 → Paid，對帳訊息取 19', function (): voi
 });
 
 it('query SETTLESTATUS11 → Declined', function (): void {
-    expect(esunPartial(esunResp(['RC' => '11', 'SETTLESTATUS' => '11']))->query('A')->outcome)
+    expect(esunPartial(esunResp(['RC' => '05', 'SETTLESTATUS' => '11']))->query('A')->outcome)
         ->toBe(PaymentOutcome::Declined);
 });
 
-it('query RC69 → Refunded，訊息銀行已退款', function (): void {
-    $result = esunPartial(esunResp(['RC' => '69', 'SETTLESTATUS' => '59']))->query('A');
+it('query SETTLESTATUS69（退貨成功）→ Refunded，訊息銀行已退款', function (): void {
+    $result = esunPartial(esunResp(['RC' => '00', 'SETTLESTATUS' => '69']))->query('A');
     expect($result->outcome)->toBe(PaymentOutcome::Refunded)->and($result->orderMessage())->toBe('銀行已退款');
+});
+
+it('query RC 永不為 69（SETTLESTATUS 才是訂單狀態）→ 不誤判 Refunded', function (): void {
+    // 回歸測試：以前用 RC===69 判退款屬死碼；RC 無 69，SETTLESTATUS 59=請款成功應為 Pending。
+    expect(esunPartial(esunResp(['RC' => '69', 'SETTLESTATUS' => '59']))->query('A')->outcome)
+        ->toBe(PaymentOutcome::Pending);
 });
 
 it('handleReturn GR → UserCancelled', function (): void {
