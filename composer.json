@@ -1,0 +1,62 @@
+{
+    "name": "lalalili/commerce-payment",
+    "description": "Unified, configurable Taiwan payment package (ECPay credit/UnionPay, E.SUN Bank) with pluggable reconciliation for Laravel commerce applications.",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": "^8.2",
+        "ecpay/sdk": "^1.1",
+        "guzzlehttp/guzzle": "^7.2",
+        "illuminate/contracts": "^11.0|^12.0|^13.0",
+        "illuminate/http": "^11.0|^12.0|^13.0",
+        "illuminate/support": "^11.0|^12.0|^13.0",
+        "spatie/laravel-package-tools": "^1.16"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^9.0|^10.0|^11.0",
+        "pestphp/pest": "^3.0|^4.0",
+        "pestphp/pest-plugin-laravel": "^3.0|^4.0",
+        "laravel/pint": "^1.0",
+        "larastan/larastan": "^3.0",
+        "lalalili/commerce-core": "^0.1.4"
+    },
+    "suggest": {
+        "lalalili/commerce-core": "Provides the CommerceCoreReconciler adapter to reconcile payment results against commerce-core orders."
+    },
+    "autoload": {
+        "psr-4": {
+            "Lalalili\\CommercePayment\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Lalalili\\CommercePayment\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Lalalili\\CommercePayment\\CommercePaymentServiceProvider"
+            ]
+        }
+    },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/lalalili/commerce-core.git"
+        }
+    ],
+    "scripts": {
+        "test": "pest",
+        "analyse": "phpstan analyse --configuration=phpstan.neon.dist --no-progress",
+        "format": "pint"
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "phpstan/extension-installer": true
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

@@ -1,0 +1,52 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Lalalili\CommercePayment\Contracts;
+
+use Illuminate\Http\Request;
+use Lalalili\CommercePayment\Data\PaymentResult;
+use Lalalili\CommercePayment\Data\PaymentStartResult;
+use Lalalili\CommercePayment\Data\RefundResult;
+
+/**
+ * 單一支付方式的閘道：純通訊（呼叫 API + 驗章 + 對應正規化結果），不寫訂單。
+ *
+ * 訂單對帳由 host 綁定的 PaymentReconciler 處理（見 PaymentManager::reconcile）。
+ */
+interface PaymentGateway
+{
+    /**
+     * 發起付款。
+     *
+     * @param array<string, mixed> $context 中立輸入：order_number、amount、item_name、return_url、result_url…
+     */
+    public function checkout(array $context): PaymentStartResult;
+
+    /**
+     * 處理背景通知（server-to-server），回正規化結果。
+     */
+    public function handleNotify(Request $request): PaymentResult;
+
+    /**
+     * 處理導回頁（browser redirect），回正規化結果。
+     */
+    public function handleReturn(Request $request): PaymentResult;
+
+    /**
+     * 主動查詢交易狀態，回正規化結果。
+     */
+    public function query(string $orderNumber): PaymentResult;
+
+    /**
+     * 退款 / 退刷 / 取消授權。
+     *
+     * @param array<string, mixed> $context 中立輸入：order_number、amount、trade_no…
+     */
+    public function refund(array $context): RefundResult;
+
+    /**
+     * 背景通知須回應給金流廠商的固定字串（如 ECPay '1|OK'）。
+     */
+    public function notifyAck(): string;
+}

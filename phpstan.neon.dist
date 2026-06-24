@@ -1,0 +1,17 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - src/
+        - config/
+
+    level: 8
+    tmpDir: build/phpstan
+    checkModelProperties: false
+    reportUnmatchedIgnoredErrors: false
+    checkMissingTypehints: false
+
+    ignoreErrors:
+        - identifier: larastan.noEnvCallsOutsideOfConfig
+          path: config/*
