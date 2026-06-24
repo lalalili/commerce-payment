@@ -58,4 +58,16 @@ return [
     'reconcile' => [
         'strict_amount_check' => env('COMMERCE_PAYMENT_STRICT_AMOUNT_CHECK', true),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | 電子發票（ECPay B2C invoice，獨立 merchant + 金鑰）
+    |--------------------------------------------------------------------------
+    */
+    'invoice' => [
+        'merchant_id'        => env('ECPAY_INVOICE_MERCHANT_ID', ''),
+        'hash_key'           => env('ECPAY_INVOICE_KEY', ''),
+        'hash_iv'            => env('ECPAY_INVOICE_IV', ''),
+        'stage_merchant_ids' => ['2000132', '3085340'],
+    ],
 ];

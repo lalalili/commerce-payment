@@ -10,6 +10,10 @@ class EcpayEndpointResolver
 
     private const PROD_BASE = 'https://payment.ecpay.com.tw';
 
+    private const INVOICE_STAGE_BASE = 'https://einvoice-stage.ecpay.com.tw';
+
+    private const INVOICE_PROD_BASE = 'https://einvoice.ecpay.com.tw';
+
     /**
      * @param array<int, string> $stageMerchantIds
      */
@@ -21,8 +25,16 @@ class EcpayEndpointResolver
 
     public function paymentBaseUrl(): string
     {
-        return in_array($this->merchantId, $this->stageMerchantIds, true)
-            ? self::STAGE_BASE
-            : self::PROD_BASE;
+        return $this->isStage() ? self::STAGE_BASE : self::PROD_BASE;
+    }
+
+    public function invoiceBaseUrl(): string
+    {
+        return $this->isStage() ? self::INVOICE_STAGE_BASE : self::INVOICE_PROD_BASE;
+    }
+
+    private function isStage(): bool
+    {
+        return in_array($this->merchantId, $this->stageMerchantIds, true);
     }
 }

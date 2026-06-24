@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-24
+
+### Added
+
+- **Invoice module (ECPay B2C e-invoice)** — the shared core between cptw and aitehub:
+  - `Contracts\InvoiceGateway` (`issue`/`void`/`query` + `checkLoveCode`/`checkBarcode`/`companyName`)
+    and `Data\InvoiceResult`. Host-agnostic: the carrier/donation mapping is passed in as
+    pre-resolved `invoice_fields`.
+  - `Gateways\EcpayInvoiceGateway` — pure AES-JSON communication, config-injected.
+  - `Reconcilers\CommerceCoreInvoiceSyncService` — issues per tax group and persists to
+    commerce-core `OrderInvoice` (requires `lalalili/commerce-core`, suggested).
+  - `EcpayEndpointResolver::invoiceBaseUrl()`; `config('commerce-payment.invoice.*')`.
+
+Allowance / print / notify (cptw-only) are intentionally out of scope for now.
+
 ## [0.1.1] - 2026-06-24
 
 ### Added
