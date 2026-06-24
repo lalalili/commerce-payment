@@ -30,10 +30,28 @@ PaymentManager::reconcile(result)     →  bound PaymentReconciler  →  your or
 
 ## Status
 
-P0 (core): ECPay credit/UnionPay + E.SUN gateways, method registry, `PaymentReconciler` +
-`CommerceCoreReconciler`. Invoice and refund-reconciler modules, plus the optional callback
-controller/routes, land in follow-up releases. cptw and aitehub migrate onto this package in
-later phases; `lalalili/payment` and `lalalili/payment-ecpay` will then be deprecated.
+**Stable (v1.x).** Production-validated by both `cptw` and `aitehub` across payment, invoice,
+and reconciliation. The predecessors `lalalili/payment` and `lalalili/payment-ecpay` are
+deprecated, abandoned, and archived in favour of this package.
+
+## Public API & Semantic Versioning
+
+From v1.0.0 the following surface is covered by [SemVer](https://semver.org/) — breaking changes
+to it require a new major version:
+
+- **Contracts**: `Contracts\PaymentGateway`, `Contracts\PaymentReconciler`, `Contracts\InvoiceGateway`.
+- **Data DTOs** (constructors, named factories, public readonly properties): `Data\PaymentResult`,
+  `Data\RefundResult`, `Data\PaymentStartResult`, `Data\InvoiceResult`.
+- **Enum**: `Enums\PaymentOutcome` cases.
+- **Event**: `Events\PaymentResultReceived`.
+- **Entry points**: `PaymentManager` (`gateway()`, `reconcile()`) and the shipped
+  `Reconcilers\*` adapters' public methods.
+- **Config schema** (`config/commerce-payment.php`): the `methods.<key>.{driver,…}` registry
+  shape, `reconcile`, `refund`, and `invoice` keys.
+
+Not covered (may change in a minor): `Support\*` internals, gateway-private helpers, and the
+concrete SDK request payloads. New payment methods, channels, or additive contracts (e.g. a
+future subscription module or `InvoiceReconciler`) ship as minor releases.
 
 ## License
 

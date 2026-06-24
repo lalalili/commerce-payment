@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-06-24
+
+### Changed
+
+- **Stable release.** No code changes from `0.2.3`; this release promotes the package to a
+  SemVer-stable `1.x` line after both `cptw` and `aitehub` migrated onto it in production
+  (payment, invoice, and reconciliation). The deprecated predecessors `lalalili/payment` and
+  `lalalili/payment-ecpay` are abandoned and archived.
+- Documented the SemVer-covered public API surface in the README (contracts, data DTOs,
+  `PaymentOutcome`, `PaymentResultReceived`, `PaymentManager`, shipped reconcilers, and the
+  `config/commerce-payment.php` schema). Additive work (subscription module, `InvoiceReconciler`,
+  new channels) will ship as minor `1.x` releases.
+
 ## [0.2.3] - 2026-06-24
 
 ### Changed
