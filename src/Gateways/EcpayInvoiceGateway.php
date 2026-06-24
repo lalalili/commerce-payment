@@ -114,6 +114,22 @@ class EcpayInvoiceGateway implements InvoiceGateway
         return $this->resultFromPayload($relateNumber, $payload);
     }
 
+    /**
+     * GetIssue 明細查詢（Revision 3.0.0），回原始回應供 host 解析 `IIS_*` 明細欄位。
+     *
+     * 與 query() 不同：query() 回 Issue-shaped 摘要 InvoiceResult；GetIssue 3.0.0 的
+     * `Data.IIS_*` 為更豐富的狀態/載具/捐贈明細，host 專屬對應較重，故回原始 payload。
+     *
+     * @return array<string, mixed> 含 TransCode/TransMsg/Data.IIS_* 的原始回應
+     */
+    public function getIssue(string $relateNumber): array
+    {
+        return $this->post('/B2CInvoice/GetIssue', [
+            'MerchantID'   => $this->merchantId,
+            'RelateNumber' => $relateNumber,
+        ], '3.0.0');
+    }
+
     public function checkLoveCode(string $loveCode): bool
     {
         $data = $this->responseData($this->post('/B2CInvoice/CheckLoveCode', [
@@ -152,11 +168,16 @@ class EcpayInvoiceGateway implements InvoiceGateway
      * @param array<string, mixed> $data
      * @return array<string, mixed>
      */
-    private function post(string $path, array $data): array
+    private function post(string $path, array $data, ?string $revision = null): array
     {
+        $rqHeader = ['Timestamp' => time()];
+        if ($revision !== null) {
+            $rqHeader['Revision'] = $revision;
+        }
+
         $response = $this->factory->create('PostWithAesJsonResponseService')->post([
             'MerchantID' => $this->merchantId,
-            'RqHeader'   => ['Timestamp' => time()],
+            'RqHeader'   => $rqHeader,
             'Data'       => $data,
         ], $this->endpoints->invoiceBaseUrl() . $path);
 

@@ -89,6 +89,51 @@ it('query → InvoiceResult', function (): void {
     expect($result->successful)->toBeTrue()->and($result->invoiceNumber)->toBe('AB12345678');
 });
 
+it('getIssue → 送 Revision 3.0.0 並原樣回傳 GetIssue 明細', function (): void {
+    $captured = [];
+    $sample = [
+        'TransCode' => 1,
+        'TransMsg'  => '',
+        'Data'      => ['RtnCode' => 1, 'RtnMsg' => '查詢成功', 'IIS_Number' => 'AB12345678', 'IIS_Issue_Status' => '1'],
+    ];
+
+    $post = new class ($sample, $captured) {
+        /**
+         * @param array<string, mixed> $response
+         * @param array<string, mixed> $captured
+         */
+        public function __construct(private array $response, public array &$captured)
+        {
+        }
+
+        /**
+         * @param array<string, mixed> $input
+         * @return array<string, mixed>
+         */
+        public function post(array $input, string $url): array
+        {
+            $this->captured = $input;
+
+            return $this->response;
+        }
+    };
+
+    $factory = Mockery::mock(Factory::class, function (MockInterface $m) use ($post): void {
+        $m->shouldReceive('create')->once()->with('PostWithAesJsonResponseService')->andReturn($post);
+    });
+
+    $gateway = new EcpayInvoiceGateway(
+        ['merchant_id' => '2000132', 'hash_key' => 'k', 'hash_iv' => 'i', 'stage_merchant_ids' => ['2000132']],
+        $factory,
+    );
+
+    $result = $gateway->getIssue('240101AAA-1');
+
+    expect($result)->toBe($sample)
+        ->and($post->captured['RqHeader']['Revision'])->toBe('3.0.0')
+        ->and($post->captured['Data']['RelateNumber'])->toBe('240101AAA-1');
+});
+
 it('checkLoveCode 存在 → true', function (): void {
     expect(invoiceGateway(['Data' => ['RtnCode' => 1, 'IsExist' => 'Y']])->checkLoveCode('123'))->toBeTrue();
 });

@@ -31,9 +31,16 @@ interface InvoiceGateway
     public function void(array $context): InvoiceResult;
 
     /**
-     * 依關聯號查詢發票。
+     * 依關聯號查詢發票（Issue-shaped 摘要）。
      */
     public function query(string $relateNumber): InvoiceResult;
+
+    /**
+     * GetIssue 明細查詢（Revision 3.0.0），回原始回應供 host 解析 `IIS_*` 明細欄位。
+     *
+     * @return array<string, mixed>
+     */
+    public function getIssue(string $relateNumber): array;
 
     /**
      * 驗證愛心碼是否存在。

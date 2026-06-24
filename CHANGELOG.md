@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-06-24
+
+### Added
+
+- `InvoiceGateway::getIssue(string $relateNumber): array` — ECPay B2C **GetIssue** detail query
+  (sends `RqHeader.Revision = '3.0.0'`), returning the raw decrypted response so the host can map
+  the richer `Data.IIS_*` detail fields (issue/invalid/upload status, carrier, love code, …).
+  Distinct from `query()`, which returns an Issue-shaped `InvoiceResult` summary.
+- `EcpayInvoiceGateway::post()` now accepts an optional per-call `Revision`, enabling the 3.0.0
+  endpoints (additive; existing calls are unchanged).
+
 ## [1.0.0] - 2026-06-24
 
 ### Changed
