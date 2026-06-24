@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-06-24
+
+### Changed
+
+- `CommerceCoreRefundSyncService` now **only refunds** (calls the channel refund API and records a
+  `refund:*` log); it no longer cancels the order. Cancelling an order is the host's action; whether
+  a refund follows is each project's decision via `config('commerce-payment.refund.auto_on_cancel')`
+  (default `false`). The host reads this flag in its cancel flow to decide whether to call this service.
+
+### Added
+
+- `config('commerce-payment.refund.*')` with `auto_on_cancel`.
+
 ## [0.2.2] - 2026-06-24
 
 ### Added
