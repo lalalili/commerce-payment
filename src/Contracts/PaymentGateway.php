@@ -24,6 +24,13 @@ interface PaymentGateway
     public function checkout(array $context): PaymentStartResult;
 
     /**
+     * 僅驗證背景通知的真偽（驗章），不查詢、不對帳。
+     *
+     * 供需要「快速回 ack、對帳改派佇列」的 async host 使用（避免 ReturnURL 逾時）。
+     */
+    public function verifyNotify(Request $request): bool;
+
+    /**
      * 處理背景通知（server-to-server），回正規化結果。
      */
     public function handleNotify(Request $request): PaymentResult;

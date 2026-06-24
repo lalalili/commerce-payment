@@ -160,3 +160,43 @@ it('refund 無 tradeNo → 失敗不打 API', function (): void {
 
     expect($result->refunded)->toBeFalse();
 });
+
+function ecpayNotifyRequest(): \Illuminate\Http\Request
+{
+    return \Illuminate\Http\Request::create('/', 'POST', [
+        'MerchantID'    => '2000132', 'MerchantTradeNo' => '240101AAA', 'PaymentDate' => '2024/01/01 00:00:00',
+        'PaymentType'   => 'Credit_CreditCard', 'PaymentTypeChargeFee' => '1', 'RtnCode' => '1', 'RtnMsg' => 'OK',
+        'SimulatePaid'  => '0', 'TradeAmt' => '450', 'TradeDate' => '2024/01/01 00:00:00', 'TradeNo' => 'T1',
+        'CheckMacValue' => 'dummy',
+    ]);
+}
+
+it('verifyNotify 驗章成功 → true（不查詢）', function (): void {
+    $verifier = new class () {
+        /** @param array<string, mixed> $d */
+        public function get(array $d): string
+        {
+            return '1|OK';
+        }
+    };
+    $factory = Mockery::mock(Factory::class, function (MockInterface $m) use ($verifier): void {
+        $m->shouldReceive('create')->once()->with(VerifiedArrayResponse::class)->andReturn($verifier);
+    });
+
+    expect(ecpayGw($factory)->verifyNotify(ecpayNotifyRequest()))->toBeTrue();
+});
+
+it('verifyNotify 驗章失敗 → false', function (): void {
+    $verifier = new class () {
+        /** @param array<string, mixed> $d */
+        public function get(array $d): string
+        {
+            throw new RuntimeException('fail');
+        }
+    };
+    $factory = Mockery::mock(Factory::class, function (MockInterface $m) use ($verifier): void {
+        $m->shouldReceive('create')->once()->with(VerifiedArrayResponse::class)->andReturn($verifier);
+    });
+
+    expect(ecpayGw($factory)->verifyNotify(ecpayNotifyRequest()))->toBeFalse();
+});

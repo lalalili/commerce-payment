@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-06-24
+
+### Added
+
+- `PaymentGateway::verifyNotify(Request): bool` — verify a background notification's signature
+  without querying, for hosts that ack fast and reconcile asynchronously (avoids ReturnURL
+  timeouts). ECPay verifies the CheckMacValue; E.SUN returns `false` (no background notify).
+
 ## [0.1.0] - 2026-06-24
 
 ### Added

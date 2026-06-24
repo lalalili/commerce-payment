@@ -67,6 +67,18 @@ class EcpayGateway implements PaymentGateway
         return PaymentStartResult::autoPostForm($url, $input, $html);
     }
 
+    public function verifyNotify(Request $request): bool
+    {
+        $payload = $this->validatedPaymentPayload($request);
+        try {
+            return $this->factory->create(VerifiedArrayResponse::class)->get($payload) === '1|OK';
+        } catch (Throwable $e) {
+            Log::channel('slack_outside_api')->critical('EcpayGateway:verifyNotify:綠界通知驗章失敗：' . $e->getMessage());
+
+            return false;
+        }
+    }
+
     public function handleNotify(Request $request): PaymentResult
     {
         $payload = $this->validatedPaymentPayload($request);

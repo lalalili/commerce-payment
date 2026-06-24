@@ -88,6 +88,12 @@ class EsunGateway implements PaymentGateway
         );
     }
 
+    public function verifyNotify(Request $request): bool
+    {
+        // 玉山無背景通知。
+        return false;
+    }
+
     public function handleNotify(Request $request): PaymentResult
     {
         // 玉山無背景通知。
