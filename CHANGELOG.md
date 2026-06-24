@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.3.0] - 2026-06-25
+## [1.3.2] - 2026-06-25
 
 ### Fixed
 
@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   spec). The branch was dead, so externally-processed refunds surfaced as `Pending` instead of
   `Refunded`. Now keyed on `SETTLESTATUS === '69'`. Verified against the E.SUN ACQ docs
   (單筆查詢 附件一 訂單狀態 / 交易錯誤定義碼).
+
+## [1.3.1] - 2026-06-25
+
+### Changed
+
+- Relaxed the `lalalili/commerce-core` compatibility constraint.
+
+## [1.3.0] - 2026-06-25
+
+### Added
+
+- Delegated payment application to the commerce-core service.
 
 ## [1.2.0] - 2026-06-24
 
