@@ -85,11 +85,11 @@ class EcpayInvoiceGateway implements InvoiceGateway
     public function void(array $context): InvoiceResult
     {
         $invoiceNumber = (string) ($context['invoice_number'] ?? '');
-        $payload = $this->post('/B2CInvoice/Invalid', [
+        $payload = $this->post('/B2CInvoice/Invalid', array_merge([
             'MerchantID' => $this->merchantId,
             'InvoiceNo'  => $invoiceNumber,
             'Reason'     => (string) ($context['reason'] ?? '訂單取消'),
-        ]);
+        ], is_array($context['invoice_fields'] ?? null) ? $context['invoice_fields'] : []));
 
         $result = $this->resultFromPayload((string) ($context['relate_number'] ?? ''), $payload);
 

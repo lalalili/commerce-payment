@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-06-24
+
+### Added
+
+- `InvoiceGateway::void()` now merges an optional `invoice_fields` array into the request `Data`
+  (e.g. some merchants must send `InvoiceDate` when voiding). Surfaced by the cptw adoption.
+
 ## [0.2.0] - 2026-06-24
 
 ### Added

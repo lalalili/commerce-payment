@@ -25,7 +25,8 @@ interface InvoiceGateway
     /**
      * 作廢發票。
      *
-     * @param array<string, mixed> $context invoice_number、reason
+     * @param array<string, mixed> $context invoice_number、reason、invoice_fields（選配，合併進 Data，
+     *                                       如某些商家需帶 InvoiceDate）
      */
     public function void(array $context): InvoiceResult;
 

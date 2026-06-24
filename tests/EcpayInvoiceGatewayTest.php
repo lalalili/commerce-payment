@@ -69,7 +69,12 @@ it('void → 帶回 invoiceNumber', function (): void {
     $result = invoiceGateway([
         'TransCode' => 1,
         'Data'      => ['RtnCode' => '1', 'RtnMsg' => '作廢成功'],
-    ])->void(['relate_number' => 'X', 'invoice_number' => 'AB12345678', 'reason' => '訂單取消']);
+    ])->void([
+        'relate_number'  => 'X',
+        'invoice_number' => 'AB12345678',
+        'reason'         => '訂單取消',
+        'invoice_fields' => ['InvoiceDate' => '2024-01-01'],
+    ]);
 
     expect($result->successful)->toBeTrue()
         ->and($result->invoiceNumber)->toBe('AB12345678');
