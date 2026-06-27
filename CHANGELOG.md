@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-06-27
+
+### Added
+
+- **ECPay 信用卡定期定額（Credit Period / recurring）** — 新增 `RecurringPaymentGateway` 選用 contract
+  （與一般 `PaymentGateway` 分離，不影響不支援此功能的 `EsunGateway`），由 `EcpayGateway` 實作：
+  - `startRecurring()` — 在 AIO 之上帶 `PeriodAmount(=TotalAmount)/PeriodType/Frequency/ExecTimes/PeriodReturnURL`。
+  - `verifyRecurringNotify()` / `handleRecurringNotify()` — 解析第 2 期起 `PeriodReturnURL` 單期通知
+    （`TotalSuccessTimes`、`gwsr`）。
+  - `cancelRecurring()` — 呼叫 `CreditCardPeriodAction (Action=Cancel)` 停止後續扣款。
+  - `queryRecurring()` — 查詢定期定額狀態（`QueryCreditCardPeriodInfo`）。
+- 新增 `Data\RecurringPaymentResult`、`Data\RecurringActionResult` DTO。
+- `EcpayCheckoutPayloadFactory::makeRecurring()` 與 config `recurring.cycles` 預設（月 999 / 年 99 期）。
+
 ## [1.3.2] - 2026-06-25
 
 ### Fixed

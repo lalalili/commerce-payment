@@ -10,8 +10,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Lalalili\CommercePayment\Contracts\PaymentGateway;
+use Lalalili\CommercePayment\Contracts\RecurringPaymentGateway;
 use Lalalili\CommercePayment\Data\PaymentResult;
 use Lalalili\CommercePayment\Data\PaymentStartResult;
+use Lalalili\CommercePayment\Data\RecurringActionResult;
+use Lalalili\CommercePayment\Data\RecurringPaymentResult;
 use Lalalili\CommercePayment\Data\RefundResult;
 use Lalalili\CommercePayment\Support\EcpayCheckoutPayloadFactory;
 use Lalalili\CommercePayment\Support\EcpayEndpointResolver;
@@ -25,7 +28,7 @@ use Throwable;
  *
  * @see https://github.com/ECPay/SDK_PHP
  */
-class EcpayGateway implements PaymentGateway
+class EcpayGateway implements PaymentGateway, RecurringPaymentGateway
 {
     private string $merchantId;
 
@@ -182,6 +185,178 @@ class EcpayGateway implements PaymentGateway
     public function notifyAck(): string
     {
         return '1|OK';
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    public function startRecurring(array $context): PaymentStartResult
+    {
+        $input = $this->payloadFactory->makeRecurring($context, $this->config);
+        $url = $this->endpoints->paymentBaseUrl() . '/Cashier/AioCheckOut/V5';
+        $html = $this->factory->create('AutoSubmitFormWithCmvService')->generate($input, $url);
+
+        return PaymentStartResult::autoPostForm($url, $input, $html);
+    }
+
+    public function verifyRecurringNotify(Request $request): bool
+    {
+        $payload = $this->validatedRecurringPayload($request);
+        try {
+            return $this->factory->create(VerifiedArrayResponse::class)->get($payload) === '1|OK';
+        } catch (Throwable $e) {
+            Log::channel('slack_outside_api')->critical('EcpayGateway:verifyRecurringNotify:綠界定期定額通知驗章失敗：' . $e->getMessage());
+
+            return false;
+        }
+    }
+
+    public function handleRecurringNotify(Request $request): RecurringPaymentResult
+    {
+        $payload = $this->validatedRecurringPayload($request);
+        try {
+            $this->factory->create(VerifiedArrayResponse::class)->get($payload);
+        } catch (Throwable $e) {
+            Log::channel('slack_outside_api')->critical('EcpayGateway:handleRecurringNotify:綠界定期定額通知驗章失敗：' . $e->getMessage());
+        }
+
+        return $this->recurringResultFromPayload($payload);
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    public function cancelRecurring(array $context): RecurringActionResult
+    {
+        $orderNumber = (string) ($context['order_number'] ?? '');
+
+        if ($orderNumber === '') {
+            return new RecurringActionResult($orderNumber, false, '', '無法取得原始定期定額訂單編號');
+        }
+
+        try {
+            $payload = $this->factory->create('PostWithCmvVerifiedEncodedStrResponseService')->post([
+                'MerchantID'      => $this->merchantId,
+                'MerchantTradeNo' => $orderNumber,
+                'Action'          => 'Cancel',
+                'TimeStamp'       => time(),
+            ], $this->endpoints->paymentBaseUrl() . '/Cashier/CreditCardPeriodAction');
+        } catch (Throwable $e) {
+            Log::channel('slack_outside_api')->critical('EcpayGateway:cancelRecurring:綠界取消定期定額失敗：' . $e->getMessage());
+
+            return new RecurringActionResult($orderNumber, false, '', '綠界取消定期定額失敗：API例外');
+        }
+
+        if (! is_array($payload) || ! isset($payload['RtnCode'])) {
+            return new RecurringActionResult($orderNumber, false, '', '綠界取消定期定額失敗：API無回應', is_array($payload) ? $payload : []);
+        }
+
+        $rtnCode = (string) $payload['RtnCode'];
+
+        return new RecurringActionResult($orderNumber, $rtnCode === '1', $rtnCode, (string) ($payload['RtnMsg'] ?? ''), $payload);
+    }
+
+    public function queryRecurring(string $orderNumber): RecurringPaymentResult
+    {
+        try {
+            $payload = $this->factory->create('PostWithCmvVerifiedEncodedStrResponseService')->post([
+                'MerchantID'      => $this->merchantId,
+                'MerchantTradeNo' => $orderNumber,
+                'TimeStamp'       => time(),
+            ], $this->endpoints->paymentBaseUrl() . '/Cashier/QueryCreditCardPeriodInfo');
+        } catch (Throwable $e) {
+            Log::channel('slack_outside_api')->critical('EcpayGateway:queryRecurring:綠界查詢定期定額失敗：' . $e->getMessage());
+
+            return RecurringPaymentResult::queryFailed($orderNumber, '', ['message' => '查詢失敗']);
+        }
+
+        return $this->recurringResultFromPayload(is_array($payload) ? $payload : [], $orderNumber);
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function recurringResultFromPayload(array $payload, ?string $fallbackOrderNumber = null): RecurringPaymentResult
+    {
+        $orderNumber = (string) ($payload['MerchantTradeNo'] ?? $fallbackOrderNumber ?? '');
+        $statusCode = (string) ($payload['RtnCode'] ?? '');
+
+        if ($statusCode === '') {
+            return RecurringPaymentResult::queryFailed($orderNumber, '', $payload);
+        }
+
+        $statusMessage = (string) ($payload['RtnMsg'] ?? '');
+        $gatewayLabel = (string) ($this->config['gateway_label'] ?? '信用卡');
+        $periodType = isset($payload['PeriodType']) ? (string) $payload['PeriodType'] : null;
+        $frequency = isset($payload['Frequency']) ? (int) $payload['Frequency'] : null;
+        $execTimes = isset($payload['ExecTimes']) ? (int) $payload['ExecTimes'] : null;
+        $totalSuccessTimes = (int) ($payload['TotalSuccessTimes'] ?? 1);
+        $gwsr = isset($payload['gwsr']) ? (string) $payload['gwsr'] : null;
+
+        if ($statusCode !== '1') {
+            return RecurringPaymentResult::failed($orderNumber, $statusCode, $statusMessage !== '' ? $statusMessage : '定期定額授權失敗', $payload);
+        }
+
+        $amount = isset($payload['Amount']) ? (int) $payload['Amount'] : 0;
+
+        return RecurringPaymentResult::paid(
+            $orderNumber,
+            $statusCode,
+            $statusMessage !== '' ? $statusMessage : '定期定額授權成功',
+            $payload,
+            $amount,
+            $this->parseProcessDate($payload) ?? Carbon::now(),
+            $totalSuccessTimes,
+            $gatewayLabel,
+            $gwsr,
+            $periodType,
+            $frequency,
+            $execTimes,
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function parseProcessDate(array $payload): ?Carbon
+    {
+        $date = $payload['ProcessDate'] ?? $payload['PaymentDate'] ?? null;
+        if (! is_string($date) || $date === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($date, config('app.timezone'));
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * 定期定額單期通知的欄位驗證（第 2 期起 PeriodReturnURL，含 PeriodType / TotalSuccessTimes / gwsr）。
+     *
+     * @return array<string, mixed>
+     */
+    private function validatedRecurringPayload(Request $request): array
+    {
+        return $request->validate([
+            'MerchantID'        => 'required',
+            'MerchantTradeNo'   => 'required',
+            'RtnCode'           => 'required',
+            'RtnMsg'            => 'required',
+            'PeriodType'        => 'nullable',
+            'Frequency'         => 'nullable',
+            'ExecTimes'         => 'nullable',
+            'Amount'            => 'nullable',
+            'gwsr'              => 'nullable',
+            'ProcessDate'       => 'nullable',
+            'AuthCode'          => 'nullable',
+            'TotalSuccessTimes' => 'nullable',
+            'card4no'           => 'nullable',
+            'card6no'           => 'nullable',
+            'SimulatePaid'      => 'nullable',
+            'CheckMacValue'     => 'required',
+        ]);
     }
 
     /**

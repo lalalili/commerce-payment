@@ -233,3 +233,136 @@ it('verifyReturn 驗章失敗 → false', function (): void {
 
     expect(ecpayGw($factory)->verifyReturn(ecpayNotifyRequest()))->toBeFalse();
 });
+
+it('startRecurring 組定期定額表單（PeriodAmount=TotalAmount、Credit、ExecTimes）', function (): void {
+    $captured = [];
+    $formService = new class ($captured) {
+        /** @param array<string, mixed> $captured */
+        public function __construct(public array &$captured)
+        {
+        }
+
+        /** @param array<string, mixed> $input */
+        public function generate(array $input, string $url): string
+        {
+            $this->captured = $input;
+
+            return '<form>recurring</form>';
+        }
+    };
+    $factory = Mockery::mock(Factory::class, function (MockInterface $m) use ($formService): void {
+        $m->shouldReceive('create')->once()->with('AutoSubmitFormWithCmvService')->andReturn($formService);
+    });
+
+    $result = ecpayGw($factory)->startRecurring([
+        'order_number'      => 'SUB0001',
+        'amount'            => 300,
+        'item_name'         => '訂閱方案',
+        'return_url'        => 'https://host.test/notify',
+        'period_return_url' => 'https://host.test/period',
+        'period_type'       => 'M',
+        'frequency'         => 1,
+        'exec_times'        => 999,
+    ]);
+
+    expect($result)->toBeInstanceOf(PaymentStartResult::class)
+        ->and($result->fields['ChoosePayment'])->toBe('Credit')
+        ->and($result->fields['TotalAmount'])->toBe('300')
+        ->and($result->fields['PeriodAmount'])->toBe('300')
+        ->and($result->fields['PeriodType'])->toBe('M')
+        ->and($result->fields['Frequency'])->toBe(1)
+        ->and($result->fields['ExecTimes'])->toBe(999)
+        ->and($result->fields['PeriodReturnURL'])->toBe('https://host.test/period')
+        ->and($result->fields['UnionPay'])->toBe(2);
+});
+
+function ecpayPeriodNotifyRequest(string $rtnCode = '1', int $totalSuccessTimes = 2): \Illuminate\Http\Request
+{
+    return \Illuminate\Http\Request::create('/', 'POST', [
+        'MerchantID'        => '2000132', 'MerchantTradeNo' => 'SUB0001', 'RtnCode' => $rtnCode, 'RtnMsg' => 'OK',
+        'PeriodType'        => 'M', 'Frequency' => '1', 'ExecTimes' => '999', 'Amount' => '300',
+        'gwsr'              => '11122233', 'ProcessDate' => '2024/02/01 00:00:00', 'AuthCode' => '777777',
+        'TotalSuccessTimes' => (string) $totalSuccessTimes, 'card4no' => '1111', 'card6no' => '431195',
+        'SimulatePaid'      => '0', 'CheckMacValue' => 'dummy',
+    ]);
+}
+
+it('handleRecurringNotify RtnCode 1 → Paid 帶 totalSuccessTimes/gwsr/amount', function (): void {
+    $verifier = new class () {
+        /** @param array<string, mixed> $d */
+        public function get(array $d): string
+        {
+            return '1|OK';
+        }
+    };
+    $factory = Mockery::mock(Factory::class, function (MockInterface $m) use ($verifier): void {
+        $m->shouldReceive('create')->once()->with(VerifiedArrayResponse::class)->andReturn($verifier);
+    });
+
+    $result = ecpayGw($factory)->handleRecurringNotify(ecpayPeriodNotifyRequest('1', 2));
+
+    expect($result->outcome)->toBe(PaymentOutcome::Paid)
+        ->and($result->orderNumber)->toBe('SUB0001')
+        ->and($result->amount)->toBe(300)
+        ->and($result->totalSuccessTimes)->toBe(2)
+        ->and($result->gwsr)->toBe('11122233')
+        ->and($result->periodType)->toBe('M')
+        ->and($result->paidAt)->not->toBeNull();
+});
+
+it('handleRecurringNotify RtnCode 非 1 → Declined', function (): void {
+    $verifier = new class () {
+        /** @param array<string, mixed> $d */
+        public function get(array $d): string
+        {
+            return '1|OK';
+        }
+    };
+    $factory = Mockery::mock(Factory::class, function (MockInterface $m) use ($verifier): void {
+        $m->shouldReceive('create')->once()->with(VerifiedArrayResponse::class)->andReturn($verifier);
+    });
+
+    $result = ecpayGw($factory)->handleRecurringNotify(ecpayPeriodNotifyRequest('10100058', 0));
+
+    expect($result->outcome)->toBe(PaymentOutcome::Declined)
+        ->and($result->isPaid())->toBeFalse();
+});
+
+it('cancelRecurring RtnCode 1 → success', function (): void {
+    $captured = [];
+    $post = new class ($captured) {
+        /** @param array<string, mixed> $captured */
+        public function __construct(public array &$captured)
+        {
+        }
+
+        /**
+         * @param array<string, mixed> $input
+         * @return array<string, mixed>
+         */
+        public function post(array $input, string $url): array
+        {
+            $this->captured = ['input' => $input, 'url' => $url];
+
+            return ['RtnCode' => '1', 'RtnMsg' => '成功'];
+        }
+    };
+    $factory = Mockery::mock(Factory::class, function (MockInterface $m) use ($post): void {
+        $m->shouldReceive('create')->once()->with('PostWithCmvVerifiedEncodedStrResponseService')->andReturn($post);
+    });
+
+    $result = ecpayGw($factory)->cancelRecurring(['order_number' => 'SUB0001']);
+
+    expect($result->success)->toBeTrue()
+        ->and($result->statusCode)->toBe('1')
+        ->and($post->captured['input']['Action'])->toBe('Cancel')
+        ->and($post->captured['url'])->toContain('/Cashier/CreditCardPeriodAction');
+});
+
+it('cancelRecurring 無 order_number → 失敗不打 API', function (): void {
+    $factory = Mockery::mock(Factory::class);
+
+    $result = ecpayGw($factory)->cancelRecurring([]);
+
+    expect($result->success)->toBeFalse();
+});
